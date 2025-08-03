@@ -1,0 +1,569 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Magic Wormhole</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background: linear-gradient(145deg, #f5f5f7, #e8e8ea);
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 14px;
+            color: #1d1d1f;
+            overflow: hidden;
+        }
+
+        .app-window {
+            width: 480px;
+            height: 650px;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 12px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
+            backdrop-filter: blur(20px);
+            overflow: hidden;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            display: flex;
+            flex-direction: column;
+        }
+
+        .title-bar {
+            height: 44px;
+            background: linear-gradient(to bottom, #fafafa, #e8e8e8);
+            border-bottom: 1px solid #d0d0d0;
+            display: flex;
+            align-items: center;
+            padding: 0 16px;
+            position: relative;
+            flex-shrink: 0;
+        }
+
+        .title {
+            position: absolute;
+            left: 50%;
+            transform: translateX(-50%);
+            font-weight: 600;
+            font-size: 13px;
+            color: #333;
+            pointer-events: none; /* Allow dragging through the title */
+        }
+
+        .drag-region {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 44px;
+            -webkit-app-region: drag;
+            z-index: 1;
+        }
+
+        .content {
+            padding: 24px;
+            flex: 1;
+            overflow-y: auto;
+        }
+
+        .tab-bar {
+            display: flex;
+            background: #f1f1f1;
+            border-radius: 8px;
+            padding: 2px;
+            margin-bottom: 24px;
+        }
+
+        .tab {
+            flex: 1;
+            padding: 8px 16px;
+            text-align: center;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.2s ease;
+            font-size: 13px;
+        }
+
+        .tab.active {
+            background: white;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            color: #007aff;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .form-group {
+            margin-bottom: 16px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 6px;
+            font-weight: 500;
+            color: #333;
+        }
+
+        .file-drop-zone {
+            border: 2px dashed #d0d0d0;
+            border-radius: 8px;
+            padding: 32px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            background: rgba(247, 247, 247, 0.5);
+        }
+
+        .file-drop-zone:hover,
+        .file-drop-zone.dragover {
+            border-color: #007aff;
+            background: rgba(0, 122, 255, 0.05);
+        }
+
+        .file-drop-zone .icon {
+            font-size: 32px;
+            margin-bottom: 8px;
+            color: #999;
+        }
+
+        .selected-file {
+            background: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 6px;
+            padding: 12px;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .file-info {
+            flex: 1;
+        }
+
+        .file-name {
+            font-weight: 500;
+            margin-bottom: 2px;
+        }
+
+        .file-size {
+            font-size: 12px;
+            color: #666;
+        }
+
+        .remove-file {
+            background: none;
+            border: none;
+            color: #999;
+            cursor: pointer;
+            padding: 4px;
+            border-radius: 4px;
+        }
+
+        .remove-file:hover {
+            background: #f0f0f0;
+            color: #666;
+        }
+
+        input[type="text"], input[type="number"] {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid #d0d0d0;
+            border-radius: 6px;
+            font-size: 14px;
+            background: white;
+            transition: border-color 0.2s ease;
+        }
+
+        input[type="text"]:focus, input[type="number"]:focus {
+            outline: none;
+            border-color: #007aff;
+            box-shadow: 0 0 0 3px rgba(0, 122, 255, 0.1);
+        }
+
+        .button {
+            background: #007aff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background-color 0.2s ease;
+            width: 100%;
+        }
+
+        .button:hover:not(:disabled) {
+            background: #0056cc;
+        }
+
+        .button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+
+        .button.secondary {
+            background: #f1f1f1;
+            color: #333;
+            border: 1px solid #d0d0d0;
+        }
+
+        .button.secondary:hover:not(:disabled) {
+            background: #e8e8e8;
+        }
+
+        .button.danger {
+            background: #ff3b30;
+        }
+
+        .button.danger:hover:not(:disabled) {
+            background: #d70015;
+        }
+
+        .wormhole-code {
+            background: #f8f9fa;
+            border: 2px solid #007aff;
+            border-radius: 8px;
+            padding: 16px;
+            text-align: center;
+            margin: 16px 0;
+            font-family: 'SF Mono', Monaco, monospace;
+            font-size: 18px;
+            font-weight: 600;
+            color: #007aff;
+            letter-spacing: 1px;
+        }
+
+        .progress-container {
+            margin: 16px 0;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 6px;
+            background: #f0f0f0;
+            border-radius: 3px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #007aff, #00c4ff);
+            border-radius: 3px;
+            transition: width 0.3s ease;
+            width: 0%;
+        }
+
+        .progress-text {
+            text-align: center;
+            margin-top: 8px;
+            font-size: 13px;
+            color: #666;
+        }
+
+        .status-message {
+            padding: 12px;
+            border-radius: 6px;
+            margin: 16px 0;
+            font-size: 13px;
+        }
+
+        .status-success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .status-error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .status-info {
+            background: #cce7ff;
+            color: #004085;
+            border: 1px solid #b8daff;
+        }
+
+        .text-area {
+            width: 100%;
+            min-height: 100px;
+            padding: 10px 12px;
+            border: 1px solid #d0d0d0;
+            border-radius: 6px;
+            font-size: 14px;
+            font-family: inherit;
+            resize: vertical;
+            background: white;
+        }
+
+        .text-area:focus {
+            outline: none;
+            border-color: #007aff;
+            box-shadow: 0 0 0 3px rgba(0, 122, 255, 0.1);
+        }
+
+        .button-group {
+            display: flex;
+            gap: 12px;
+            margin-top: 16px;
+        }
+
+        .location-group {
+            display: flex;
+            gap: 8px;
+        }
+
+        .location-group input {
+            flex: 1;
+        }
+
+        .location-group .button {
+            width: auto;
+            padding: 10px 16px;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        .settings-section {
+            margin-bottom: 20px;
+            padding-bottom: 16px;
+            border-bottom: 1px solid #f0f0f0;
+        }
+
+        .settings-section:last-child {
+            border-bottom: none;
+        }
+
+        .settings-section h3 {
+            margin-bottom: 8px;
+            font-size: 14px;
+            font-weight: 600;
+        }
+
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 8px;
+        }
+
+        input[type="checkbox"] {
+            width: 16px;
+            height: 16px;
+        }
+
+        .history {
+            max-height: 200px;
+            overflow-y: auto;
+            margin-top: 16px;
+        }
+
+        .history-item {
+            padding: 8px 12px;
+            border-bottom: 1px solid #f0f0f0;
+            font-size: 12px;
+        }
+
+        .history-item:last-child {
+            border-bottom: none;
+        }
+
+        .history-time {
+            color: #666;
+            font-weight: 500;
+        }
+
+        .cancel-button {
+            margin-top: 8px;
+        }
+    </style>
+</head>
+<body>
+    <div class="app-window">
+        <div class="title-bar">
+            <div class="drag-region"></div>
+            <div class="title">Magic Wormhole</div>
+        </div>
+
+        <div class="content">
+            <div class="tab-bar">
+                <div class="tab active" data-tab="send">Send</div>
+                <div class="tab" data-tab="receive">Receive</div>
+                <div class="tab" data-tab="text">Text</div>
+                <div class="tab" data-tab="settings">Settings</div>
+            </div>
+
+            <!-- Send Tab -->
+            <div class="tab-content active" id="send-tab">
+                <div class="form-group">
+                    <div class="file-drop-zone" id="file-drop-zone">
+                        <div class="icon">📁</div>
+                        <div>Click to select files</div>
+                        <div style="font-size: 12px; color: #999; margin-top: 4px;">
+                            Supports multiple files and folders
+                        </div>
+                    </div>
+                    <div id="selected-files"></div>
+                </div>
+                
+                <div class="button-group">
+                    <button class="button" id="send-button" disabled>Send Files</button>
+                    <button class="button secondary" id="clear-files">Clear</button>
+                </div>
+                
+                <div id="send-status"></div>
+                <div id="send-progress" class="hidden">
+                    <div class="progress-container">
+                        <div class="progress-bar">
+                            <div class="progress-fill" id="send-progress-fill"></div>
+                        </div>
+                        <div class="progress-text" id="send-progress-text">Preparing...</div>
+                    </div>
+                    <button class="button danger cancel-button" id="cancel-send">Cancel Transfer</button>
+                </div>
+                <div id="wormhole-code-display" class="hidden">
+                    <div class="wormhole-code" id="wormhole-code"></div>
+                    <div style="text-align: center; font-size: 13px; color: #666;">
+                        Share this code with the recipient
+                    </div>
+                </div>
+            </div>
+
+            <!-- Receive Tab -->
+            <div class="tab-content" id="receive-tab">
+                <div class="form-group">
+                    <label for="receive-code">Wormhole Code</label>
+                    <input type="text" id="receive-code" placeholder="Enter code (e.g., 69-roadworks-ahead)" 
+                           style="font-family: 'SF Mono', Monaco, monospace;">
+                </div>
+                
+                <div class="form-group">
+                    <label for="save-location">Save Location</label>
+                    <div class="location-group">
+                        <input type="text" id="save-location" readonly placeholder="Choose download location">
+                        <button class="button secondary" id="choose-location">Browse</button>
+                    </div>
+                </div>
+                
+                <button class="button" id="receive-button" disabled>Receive Files</button>
+                
+                <div id="receive-status"></div>
+                <div id="receive-progress" class="hidden">
+                    <div class="progress-container">
+                        <div class="progress-bar">
+                            <div class="progress-fill" id="receive-progress-fill"></div>
+                        </div>
+                        <div class="progress-text" id="receive-progress-text">Connecting...</div>
+                    </div>
+                    <button class="button danger cancel-button" id="cancel-receive">Cancel Transfer</button>
+                </div>
+            </div>
+
+            <!-- Text Tab -->
+            <div class="tab-content" id="text-tab">
+                <div class="tab-bar" style="margin-bottom: 16px;">
+                    <div class="tab active" data-subtab="send-text">Send Text</div>
+                    <div class="tab" data-subtab="receive-text">Receive Text</div>
+                </div>
+
+                <div class="tab-content active" id="send-text-tab">
+                    <div class="form-group">
+                        <label for="text-content">Message</label>
+                        <textarea class="text-area" id="text-content" placeholder="Enter your message here..."></textarea>
+                    </div>
+                    <button class="button" id="send-text-button" disabled>Send Text</button>
+                    <div id="text-send-status"></div>
+                    <div id="text-code-display" class="hidden">
+                        <div class="wormhole-code" id="text-wormhole-code"></div>
+                        <div style="text-align: center; font-size: 13px; color: #666;">
+                            Share this code with the recipient
+                        </div>
+                    </div>
+                </div>
+
+                <div class="tab-content" id="receive-text-tab">
+                    <div class="form-group">
+                        <label for="text-receive-code">Wormhole Code</label>
+                        <input type="text" id="text-receive-code" placeholder="Enter code (e.g., 69-roadworks-ahead)"
+                               style="font-family: 'SF Mono', Monaco, monospace;">
+                    </div>
+                    <button class="button" id="receive-text-button" disabled>Receive Text</button>
+                    <div id="text-receive-status"></div>
+                    <div id="received-text" class="hidden">
+                        <label>Received Message:</label>
+                        <textarea class="text-area" id="received-text-content" readonly></textarea>
+                        <button class="button secondary" id="copy-text" style="margin-top: 8px;">Copy to Clipboard</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Settings Tab -->
+            <div class="tab-content" id="settings-tab">
+                <div class="settings-section">
+                    <h3>Transfer Settings</h3>
+                    <div class="checkbox-group">
+                        <input type="checkbox" id="verify-checksums" checked>
+                        <label for="verify-checksums">Verify file checksums</label>
+                    </div>
+                    <div class="checkbox-group">
+                        <input type="checkbox" id="overwrite-files">
+                        <label for="overwrite-files">Overwrite existing files</label>
+                    </div>
+                </div>
+
+                <div class="settings-section">
+                    <h3>Notifications</h3>
+                    <div class="checkbox-group">
+                        <input type="checkbox" id="show-notifications" checked>
+                        <label for="show-notifications">Show system notifications</label>
+                    </div>
+                    <div class="checkbox-group">
+                        <input type="checkbox" id="open-after-receive" checked>
+                        <label for="open-after-receive">Open folder after receiving files</label>
+                    </div>
+                </div>
+
+                <div class="settings-section">
+                    <h3>Advanced</h3>
+                    <div class="form-group">
+                        <label for="relay-server">Custom Relay Server (optional)</label>
+                        <input type="text" id="relay-server" placeholder="wss://relay.magic-wormhole.io:4000/v1">
+                    </div>
+                    <div class="form-group">
+                        <label for="code-length">Code Word Count</label>
+                        <input type="number" id="code-length" value="2" min="2" max="4">
+                    </div>
+                </div>
+
+                <div class="settings-section">
+                    <h3>Transfer History</h3>
+                    <div class="history" id="transfer-history">
+                        <div style="text-align: center; color: #999; padding: 20px;">No transfers yet</div>
+                    </div>
+                    <button class="button secondary" id="clear-history" style="margin-top: 12px;">Clear History</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="renderer.js"></script>
+</body>
+</html>

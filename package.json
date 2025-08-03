@@ -1,0 +1,119 @@
+{
+  "name": "wormhole-gui",
+  "version": "1.0.0",
+  "description": "A cross-platform GUI for magic-wormhole file transfers",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "build": "electron-builder",
+    "build:all": "electron-builder --win --mac --linux", 
+    "build:win": "electron-builder --win",
+    "build:mac": "electron-builder --mac",
+    "build:linux": "electron-builder --linux",
+    "build:flatpak": "electron-builder --linux flatpak",
+    "dist": "electron-builder --publish=never",
+    "create-binaries": "node scripts/create-binaries.js",
+    "prebuild": "npm run create-binaries"
+  },
+  "keywords": ["magic-wormhole", "file-transfer", "electron", "cross-platform"],
+  "author": "Your Name",
+  "license": "MIT",
+  "devDependencies": {
+    "electron": "^27.0.0",
+    "electron-builder": "^24.6.4"
+  },
+  "dependencies": {
+    "node-pty": "^1.0.0"
+  },
+  "build": {
+    "appId": "com.yourname.wormhole",
+    "productName": "Wormhole",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "main.js",
+      "renderer.js", 
+      "preload.js",
+      "index.html",
+      "package.json",
+      "!resources/binaries/**"
+    ],
+    "extraResources": [
+      {
+        "from": "resources/binaries/",
+        "to": "binaries/",
+        "filter": ["**/*"]
+      }
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": ["x64", "ia32"]
+        },
+        {
+          "target": "portable", 
+          "arch": ["x64"]
+        }
+      ],
+      "icon": "assets/icon.ico",
+      "publisherName": "Your Name"
+    },
+    "mac": {
+      "category": "public.app-category.utilities",
+      "target": [
+        {
+          "target": "dmg",
+          "arch": ["x64", "arm64"]
+        },
+        {
+          "target": "zip",
+          "arch": ["x64", "arm64"]
+        }
+      ],
+      "icon": "assets/icon.icns"
+    },
+    "linux": {
+      "target": [
+        {
+          "target": "AppImage",
+          "arch": ["x64"]
+        },
+        {
+          "target": "deb",
+          "arch": ["x64"]
+        },
+        {
+          "target": "rpm",
+          "arch": ["x64"]
+        },
+        {
+          "target": "flatpak",
+          "arch": ["x64"]
+        }
+      ],
+      "icon": "assets/icon.png",
+      "category": "Utility"
+    },
+    "flatpak": {
+      "baseVersion": "22.08",
+      "runtime": "org.freedesktop.Platform",
+      "runtimeVersion": "22.08",
+      "sdk": "org.freedesktop.Sdk",
+      "finishArgs": [
+        "--share=network",
+        "--share=ipc",
+        "--socket=x11",
+        "--socket=wayland",
+        "--filesystem=home"
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true
+    }
+  }
+}
