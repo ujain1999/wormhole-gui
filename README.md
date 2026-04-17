@@ -1,6 +1,6 @@
 # Wormhole GUI
 
-A beautiful, minimal desktop application for magic-wormhole. Send and receive files securely between devices using easy-to-share codes or QR codes.
+A beautiful, minimal desktop application for [magic-wormhole](https://github.com/magic-wormhole/magic-wormhole). Send and receive files securely between devices using easy-to-share codes or QR codes.
 
 ## Features
 
@@ -53,5 +53,9 @@ Builds are output to the `dist/` folder.
 ## Tech Stack
 
 - Electron
-- wormhole-william (Go implementation of magic-wormhole)
+- [wormhole-william](https://github.com/psanford/wormhole-william) (Go implementation of magic-wormhole)
 - QRCode
+
+## License
+
+MIT
