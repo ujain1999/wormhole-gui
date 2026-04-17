@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; script-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self';">
+  <title>Wormhole</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="app" data-theme="light">
+    <header class="header">
+      <div class="header-left">
+        <svg class="logo-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
+        </svg>
+        <span class="logo-text">Wormhole</span>
+      </div>
+      <button class="icon-btn settings-btn" id="settingsBtn" aria-label="Settings">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="3"/>
+          <path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-2 2 2 2 0 01-2-2v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 01-2-2 2 2 0 012-2h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 012-2 2 2 0 012 2v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 012 2 2 2 0 01-2 2h-.09a1.65 1.65 0 00-1.51 1z"/>
+        </svg>
+      </button>
+    </header>
+
+    <main class="main-content">
+      <div class="tabs">
+        <button class="tab-btn active" data-tab="send">Send</button>
+        <button class="tab-btn" data-tab="receive">Receive</button>
+        <div class="tab-indicator"></div>
+      </div>
+
+      <div class="tab-content active" id="sendTab">
+        <div class="drop-zone" id="dropZone">
+          <div class="drop-zone-content">
+            <svg class="drop-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+              <path d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
+            </svg>
+            <p class="drop-text">Drop files here</p>
+            <p class="drop-subtext">or</p>
+            <button class="btn btn-secondary" id="selectFilesBtn">Select Files</button>
+</div>
+      </div>
+        <div class="file-list hidden" id="fileList">
+          <div class="file-list-header">
+            <span class="file-count" id="fileCount">0 files selected</span>
+            <button class="btn btn-ghost" id="clearFilesBtn">Clear</button>
+          </div>
+          <div class="file-items" id="fileItems"></div>
+          <button class="btn btn-primary btn-full" id="sendBtn">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/>
+            </svg>
+            Send
+          </button>
+        </div>
+
+        <div class="progress-section hidden" id="sendProgressSection">
+          <div class="progress-spinner"></div>
+          <p class="progress-text" id="sendProgressText">Preparing...</p>
+          <div class="progress-bar">
+            <div class="progress-fill" id="sendProgressFill"></div>
+          </div>
+        </div>
+
+        <div class="success-section hidden" id="sendSuccessSection">
+          <div class="success-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M22 11.08V12a10 10 0 11-5.93-9.14"/>
+              <polyline points="22,4 12,14.01 9,11.01"/>
+            </svg>
+          </div>
+          <p class="success-text" id="sendSuccessText">Sent!</p>
+        </div>
+
+        <div class="code-display hidden" id="codeDisplay">
+          <div class="code-section">
+            <p class="code-label">Share this code</p>
+            <div class="code-box">
+              <span class="code-text" id="wormholeCode">-------</span>
+              <button class="btn btn-ghost btn-icon copy-btn" id="copyCodeBtn" aria-label="Copy code">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+                  <path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/>
+                </svg>
+              </button>
+            </div>
+          </div>
+          <div class="qr-section">
+            <div class="qr-box" id="qrCode">
+              <div class="qr-placeholder">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                  <rect x="3" y="3" width="7" height="7"/>
+                  <rect x="14" y="3" width="7" height="7"/>
+                  <rect x="3" y="14" width="7" height="7"/>
+                  <rect x="14" y="14" width="7" height="7"/>
+                </svg>
+              </div>
+            </div>
+            <p class="qr-hint">Scan to receive</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="tab-content" id="receiveTab">
+        <div class="receive-section" id="receiveInput">
+          <p class="receive-label">Enter the code</p>
+          <div class="code-input-wrapper">
+            <input type="text" class="code-input" id="receiveCodeInput" placeholder="1-abc-def" spellcheck="false" autocomplete="off">
+          </div>
+          <button class="btn btn-primary btn-full" id="receiveBtn">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/>
+            </svg>
+            Receive
+          </button>
+        </div>
+
+        <div class="progress-section hidden" id="progressSection">
+          <div class="progress-spinner"></div>
+          <p class="progress-text" id="progressText">Connecting...</p>
+          <div class="progress-bar">
+            <div class="progress-fill" id="progressFill"></div>
+          </div>
+        </div>
+
+        <div class="success-section hidden" id="receiveSuccessSection">
+          <div class="success-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M22 11.08V12a10 10 0 11-5.93-9.14"/>
+              <polyline points="22,4 12,14.01 9,11.01"/>
+            </svg>
+          </div>
+          <p class="success-text" id="receiveSuccessText">Received!</p>
+        </div>
+      </div>
+    </main>
+
+    <div class="modal-overlay hidden" id="settingsModal">
+      <div class="modal">
+        <div class="modal-header">
+          <h2 class="modal-title">Settings</h2>
+          <button class="btn btn-ghost btn-icon" id="closeSettingsBtn" aria-label="Close">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M18 6L6 18M6 6l12 12"/>
+            </svg>
+          </button>
+        </div>
+        <div class="modal-content">
+          <div class="setting-group">
+            <label class="setting-label">Default Download Location</label>
+            <div class="setting-row">
+              <input type="text" class="setting-input" id="downloadPathInput" readonly>
+              <button class="btn btn-secondary" id="browseBtn">Browse</button>
+            </div>
+          </div>
+
+          <div class="setting-group">
+            <label class="checkbox-label">
+              <input type="checkbox" id="askEverytimeCheckbox">
+              <span class="checkbox-custom"></span>
+              <span>Ask for location every time</span>
+            </label>
+          </div>
+
+          <div class="setting-group">
+            <label class="setting-label">Theme</label>
+            <div class="theme-options">
+              <button class="theme-btn" data-theme="system">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <rect x="2" y="3" width="20" height="14" rx="2" ry="2"/>
+                  <path d="M8 21h8M12 17v4"/>
+                </svg>
+                System
+              </button>
+              <button class="theme-btn active" data-theme="light">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <circle cx="12" cy="12" r="5"/>
+                  <path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/>
+                </svg>
+                Light
+              </button>
+              <button class="theme-btn" data-theme="dark">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/>
+                </svg>
+                Dark
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal-overlay hidden" id="confirmModal">
+      <div class="modal modal-confirm">
+        <div class="modal-header">
+          <h2 class="modal-title">Incoming File</h2>
+        </div>
+        <div class="modal-content">
+          <div class="confirm-file-info">
+            <svg class="file-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+              <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/>
+              <polyline points="14,2 14,8 20,8"/>
+            </svg>
+            <div class="file-details">
+              <p class="file-name" id="confirmFileName">filename.zip</p>
+              <p class="file-size" id="confirmFileSize">12.5 MB</p>
+            </div>
+          </div>
+          <p class="confirm-message">Do you want to accept this file?</p>
+          <div class="confirm-actions">
+            <button class="btn btn-secondary" id="declineBtn">No</button>
+            <button class="btn btn-primary" id="acceptBtn">Yes</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="renderer.js"></script>
+</body>
+</html>

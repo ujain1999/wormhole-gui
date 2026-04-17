@@ -1,0 +1,21 @@
+{
+  "name": "wormhole-gui",
+  "version": "1.0.0",
+  "description": "A beautiful GUI for magic-wormhole",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "dev": "electron . --enable-logging",
+    "postinstall": "bash scripts/setup-wormhole.sh"
+  },
+  "keywords": ["wormhole", "file-transfer", "electron"],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "electron": "^33.0.0"
+  },
+  "dependencies": {
+    "magic-wormhole": "1.0.6-ad51cf3-1",
+    "qrcode": "^1.5.4"
+  }
+}
