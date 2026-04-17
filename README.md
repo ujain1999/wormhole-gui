@@ -1,16 +1,13 @@
 # Wormhole GUI
 
-A beautiful, minimal desktop application for magic-wormhole. Send and receive files securely between devices using easy-to-share codes or QR codes.
+A GUI application for magic-wormhole. Send and receive files seamlessly.
 
 ## Features
 
 - Send files with drag and drop or file picker
 - Receive files by entering the wormhole code
-- QR code support for easy mobile transfers
+- QR code support for sending files
 - Light and dark themes
-- Configurable default download location
-- File confirmation dialog on receive
-- Automatic wormhole binary installation
 
 ## Requirements
 

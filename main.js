@@ -10,10 +10,20 @@ let mainWindow;
 const WORMHOLE_BINARY = (() => {
   const platform = os.platform();
   const ext = platform === 'win32' ? '.exe' : '';
-  const localPath = path.join(__dirname, 'bin', `wormhole-william${ext}`);
+
+  const isDev = !app.isPackaged;
+  const basePath = isDev ? __dirname : path.join(process.resourcesPath);
+
+  const localPath = path.join(basePath, 'bin', `wormhole-william${ext}`);
   if (fs.existsSync(localPath)) {
     return localPath;
   }
+
+  const devPath = path.join(__dirname, 'bin', `wormhole-william${ext}`);
+  if (fs.existsSync(devPath)) {
+    return devPath;
+  }
+
   return `wormhole-william${ext}`;
 })();
 
