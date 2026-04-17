@@ -1,23 +1,57 @@
 # Wormhole GUI
 
-A GUI application for wormhole file transfers.
-The is an Electron based application that provides a frontend for interfacing with the magic-wormhole command-line tool. 
-
-All transfers use the actual magic-wormhole
+A beautiful, minimal desktop application for magic-wormhole. Send and receive files securely between devices using easy-to-share codes or QR codes.
 
 ## Features
 
-- **File Transfers**: Send and receive files with drag-and-drop support
-- **Text Messages**: Send and receive text messages
-- **Transfer History**: Persistent history of all transfers
+- Send files with drag and drop or file picker
+- Receive files by entering the wormhole code
+- QR code support for easy mobile transfers
+- Light and dark themes
+- Configurable default download location
+- File confirmation dialog on receive
+- Automatic wormhole binary installation
+
+## Requirements
+
+- Node.js 18+
+- npm 8+
 
 ## Installation
 
-1. **Download and install from [GitHub Releases](https://github.com/ujain1999/wormhole-gui/releases).**
+```bash
+npm install
+```
 
-2. Using npm
-   ```bash
-   npm install
-   npm start
-   ```
-   
+## Development
+
+```bash
+npm start
+```
+
+## Building
+
+```bash
+# Download binaries for each platform
+node scripts/download-binary.js mac
+node scripts/download-binary.js win
+node scripts/download-binary.js linux
+
+# Build each platform
+npm run build:mac    # macOS (dmg + zip)
+npm run build:win    # Windows (portable zip)
+npm run build:linux  # Linux (AppImage)
+```
+
+Builds are output to the `dist/` folder.
+
+## How it works
+
+1. **Send**: Select files, click Send, share the code or QR with the receiver
+2. **Receive**: Enter the code or scan the QR, confirm to accept the file
+
+## Tech Stack
+
+- Electron
+- wormhole-william (Go implementation of magic-wormhole)
+- QRCode

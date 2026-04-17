@@ -1,23 +1,33 @@
 # Dependencies
-/node_modules
-/.pnp
-.pnp.js
+node_modules/
 
-# Testing
-/coverage
+# Binary (downloaded on npm install)
+bin/
 
-# Production
-/build
-/dist
-
-# Misc
-.DS_Store
-.env
-.env.local
-.next
-.vercel
+# Logs
+*.log
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
-.idea
-.vscode
+
+# Production
+dist/
+build/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Electron
+*.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Environment
+.env
+.env.local
+.env.*.local

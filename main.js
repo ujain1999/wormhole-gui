@@ -1,448 +1,346 @@
-const { app, BrowserWindow, ipcMain, dialog, shell, Notification } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog } = require('electron');
 const { spawn } = require('child_process');
 const path = require('path');
-const fs = require('fs').promises;
+const fs = require('fs');
 const os = require('os');
+const QRCode = require('qrcode');
 
-class WormholeApp {
-    constructor() {
-        this.mainWindow = null;
-        this.activeTransfers = new Map();
-        this.wormholePath = this.getWormholePath();
-        this.setupApp();
+let mainWindow;
+
+const WORMHOLE_BINARY = (() => {
+  const platform = os.platform();
+  const ext = platform === 'win32' ? '.exe' : '';
+
+  const isDev = !app.isPackaged;
+  const basePath = isDev ? __dirname : path.join(process.resourcesPath);
+
+  const localPath = path.join(basePath, 'bin', `wormhole-william${ext}`);
+  if (fs.existsSync(localPath)) {
+    return localPath;
+  }
+
+  const devPath = path.join(__dirname, 'bin', `wormhole-william${ext}`);
+  if (fs.existsSync(devPath)) {
+    return devPath;
+  }
+
+  return `wormhole-william${ext}`;
+})();
+
+function createWindow() {
+  mainWindow = new BrowserWindow({
+    width: 480,
+    height: 720,
+    minWidth: 400,
+    minHeight: 600,
+    frame: true,
+    resizable: true,
+    backgroundColor: '#FAFAFA',
+    webPreferences: {
+      nodeIntegration: false,
+      contextIsolation: true,
+      preload: path.join(__dirname, 'preload.js')
     }
+  });
 
-    getWormholePath() {
-        const isDev = !app.isPackaged;
-        const platform = process.platform;
-        const binariesPath = isDev ? path.join(__dirname, 'resources', 'binaries') : path.join(process.resourcesPath, 'binaries');
+  mainWindow.loadFile('index.html');
 
-        switch (platform) {
-            case 'win32':
-                return path.join(binariesPath, 'wormhole.exe');
-            case 'darwin':
-                return path.join(binariesPath, 'wormhole');
-            case 'linux':
-                return path.join(binariesPath, 'wormhole');
-            default:
-                return path.join(binariesPath, 'wormhole');
-        }
-    }
-
-    async isWormholeAvailable() {
-        return new Promise((resolve) => {
-            const testProcess = spawn(this.wormholePath, ['--version'], { stdio: 'pipe' });
-            testProcess.on('close', (code) => {
-                resolve(code === 0);
-            });
-            testProcess.on('error', () => resolve(false));
-        });
-    }
-
-    setupApp() {
-        app.whenReady().then(() => {
-            this.createWindow();
-            this.setupIPC();
-        });
-
-        app.on('window-all-closed', () => {
-            if (process.platform !== 'darwin') {
-                app.quit();
-            }
-        });
-
-        app.on('activate', () => {
-            if (BrowserWindow.getAllWindows().length === 0) {
-                this.createWindow();
-            }
-        });
-    }
-
-    createWindow() {
-        this.mainWindow = new BrowserWindow({
-            width: 480,
-            height: 650,
-            titleBarStyle: 'hiddenInset',
-            webPreferences: {
-                nodeIntegration: false,
-                contextIsolation: true,
-                preload: path.join(__dirname, 'preload.js')
-            },
-            resizable: false,
-            maximizable: false
-        });
-
-        this.mainWindow.loadFile('index.html');
-
-        // Hide menu bar on macOS
-        if (process.platform === 'darwin') {
-            this.mainWindow.setMenuBarVisibility(false);
-        }
-    }
-
-    setupIPC() {
-        // Check if wormhole is available (now checks bundled version)
-        ipcMain.handle('check-wormhole', async () => {
-            return await this.isWormholeAvailable();
-        });
-
-        // Remove install-wormhole handler since we're bundling it
-        // The app should work out of the box now
-
-        // Send files
-        ipcMain.handle('send-files', async (event, filePaths) => {
-            const transferId = Date.now().toString();
-
-            try {
-                console.log('Send files requested for:', filePaths);
-                console.log('Using wormhole path:', this.wormholePath);
-
-                // Check if wormhole binary exists
-                const fs = require('fs');
-                if (!fs.existsSync(this.wormholePath)) {
-                    const error = `Wormhole binary not found at: ${this.wormholePath}`;
-                    console.error(error);
-                    throw new Error(error);
-                }
-                else {
-                    console.log('Wormhole binary found at:', this.wormholePath);
-                }
-
-                return new Promise((resolve, reject) => {
-                    const args = ['send'];
-                    filePaths.forEach(filePath => args.push(filePath));
-
-                    console.log('Spawning wormhole with args:', args);
-
-                    const wormholeProcess = spawn(this.wormholePath, args, { stdio: 'pipe' });
-                    this.activeTransfers.set(transferId, wormholeProcess);
-
-                    let output = '';
-                    let errorOutput = '';
-                    let code = null;
-
-                    wormholeProcess.stdout.on('data', (data) => {
-                        const text = data.toString();
-                        output += text;
-                        console.log('Wormhole stdout:', text);
-
-                        // Extract wormhole code
-                        const codeMatch = text.match(/Wormhole code is: (\d+-\w+-\w+)/);
-                        if (codeMatch) {
-                            code = codeMatch[1];
-                            this.mainWindow.webContents.send('transfer-code', { transferId, code });
-                        }
-
-                        // Progress updates
-                        const progressMatch = text.match(/(\d+)%/);
-                        if (progressMatch) {
-                            const progress = parseInt(progressMatch[1]);
-                            this.mainWindow.webContents.send('transfer-progress', { transferId, progress });
-                        }
-                    });
-
-                    wormholeProcess.stderr.on('data', (data) => {
-                        const text = data.toString();
-                        errorOutput += text;
-                        console.log('Wormhole stderr:', text);
-
-                        this.mainWindow.webContents.send('transfer-status', {
-                            transferId,
-                            status: 'info',
-                            message: text.trim()
-                        });
-                    });
-
-                    wormholeProcess.on('close', (exitCode) => {
-                        console.log('Wormhole process closed with code:', exitCode);
-                        console.log('Final output:', output);
-                        console.log('Final error output:', errorOutput);
-
-                        this.activeTransfers.delete(transferId);
-
-                        if (exitCode === 0) {
-                            this.mainWindow.webContents.send('transfer-complete', {
-                                transferId,
-                                success: true,
-                                code
-                            });
-
-                            // Show system notification
-                            new Notification({
-                                title: 'Magic Wormhole',
-                                body: `Files sent successfully! Code: ${code}`
-                            }).show();
-
-                            resolve({ success: true, code, transferId });
-                        } else {
-                            const errorMessage = errorOutput || output || `Process exited with code ${exitCode}`;
-                            this.mainWindow.webContents.send('transfer-complete', {
-                                transferId,
-                                success: false,
-                                error: errorMessage
-                            });
-                            reject(new Error(errorMessage));
-                        }
-                    });
-
-                    wormholeProcess.on('error', (error) => {
-                        console.error('Wormhole process error:', error);
-                        this.activeTransfers.delete(transferId);
-                        reject(error);
-                    });
-                });
-
-            } catch (error) {
-                console.error('Send files error:', error);
-                throw error;
-            }
-        });
-
-        // Receive files
-        ipcMain.handle('receive-files', async (event, code, saveLocation) => {
-            const transferId = Date.now().toString();
-
-            return new Promise((resolve, reject) => {
-                const wormholeProcess = spawn(this.wormholePath, ['receive', code], {
-                    cwd: saveLocation,
-                    stdio: 'pipe'
-                });
-
-                this.activeTransfers.set(transferId, wormholeProcess);
-
-                let output = '';
-                let hasStarted = false;
-
-                // Send initial status
-                this.mainWindow.webContents.send('transfer-status', {
-                    transferId,
-                    status: 'info',
-                    message: 'Connecting to sender...'
-                });
-
-                wormholeProcess.stdout.on('data', (data) => {
-                    const text = data.toString();
-                    output += text;
-                    console.log('Receive stdout:', text); // Debug log
-
-                    // Check for connection established
-                    if (text.includes('Receiving') || text.includes('file') || text.includes('Sending')) {
-                        if (!hasStarted) {
-                            hasStarted = true;
-                            this.mainWindow.webContents.send('transfer-status', {
-                                transferId,
-                                status: 'info',
-                                message: 'Transfer started...'
-                            });
-                            this.mainWindow.webContents.send('transfer-progress', { transferId, progress: 25 });
-                        }
-                    }
-
-                    // Progress updates - look for various progress indicators
-                    const progressMatch = text.match(/(\d+)%/) || text.match(/(\d+)\/(\d+)/);
-                    if (progressMatch) {
-                        let progress;
-                        if (progressMatch[2]) {
-                            // Format like "1024/2048"
-                            progress = Math.round((parseInt(progressMatch[1]) / parseInt(progressMatch[2])) * 100);
-                        } else {
-                            // Format like "50%"
-                            progress = parseInt(progressMatch[1]);
-                        }
-                        this.mainWindow.webContents.send('transfer-progress', { transferId, progress });
-                    }
-
-                    // File info updates
-                    if (text.includes('Receiving') || text.includes('bytes')) {
-                        this.mainWindow.webContents.send('transfer-status', {
-                            transferId,
-                            status: 'info',
-                            message: text.trim()
-                        });
-                    }
-                });
-
-                wormholeProcess.stderr.on('data', (data) => {
-                    const text = data.toString();
-                    output += text;
-                    console.log('Receive stderr:', text); // Debug log
-
-                    // Many wormhole messages come through stderr, not necessarily errors
-                    if (text.includes('Receiving') || text.includes('Connection') || text.includes('Key')) {
-                        this.mainWindow.webContents.send('transfer-status', {
-                            transferId,
-                            status: 'info',
-                            message: text.trim()
-                        });
-                    }
-                });
-
-                // Auto-accept file transfers (simulate user confirmation)
-                setTimeout(() => {
-                    wormholeProcess.stdin.write('y\n');
-                }, 1000);
-
-                wormholeProcess.on('close', (exitCode) => {
-                    this.activeTransfers.delete(transferId);
-                    console.log('Receive process closed with code:', exitCode); // Debug log
-
-                    if (exitCode === 0) {
-                        this.mainWindow.webContents.send('transfer-complete', {
-                            transferId,
-                            success: true
-                        });
-
-                        new Notification({
-                            title: 'Magic Wormhole',
-                            body: 'Files received successfully!'
-                        }).show();
-
-                        resolve({ success: true, transferId });
-                    } else {
-                        this.mainWindow.webContents.send('transfer-complete', {
-                            transferId,
-                            success: false,
-                            error: output || `Process exited with code ${exitCode}`
-                        });
-                        reject({ success: false, error: output || `Process exited with code ${exitCode}` });
-                    }
-                });
-
-                wormholeProcess.on('error', (error) => {
-                    this.activeTransfers.delete(transferId);
-                    console.log('Receive process error:', error); // Debug log
-                    reject({ success: false, error: error.message });
-                });
-            });
-        });
-
-        // Send text
-        ipcMain.handle('send-text', async (event, text) => {
-            console.log('Send text requested:', text);
-            const transferId = Date.now().toString();
-
-            return new Promise((resolve, reject) => {
-                const wormholeProcess = spawn(this.wormholePath, ['send', '--text', text], { stdio: 'pipe' });
-                this.activeTransfers.set(transferId, wormholeProcess);
-                let output = '';
-                let code = null;
-
-                wormholeProcess.stdout.on('data', (data) => {
-                    const text = data.toString();
-                    output += text;
-                    // console.log(output);
-                    const codeMatch = text.match(/Wormhole code is: (\d+-\w+-\w+)/);
-                    if (codeMatch) {
-                        code = codeMatch[1];
-                        this.mainWindow.webContents.send('text-code', { transferId, code });
-                    }
-                });
-
-                wormholeProcess.on('close', (exitCode) => {
-                    this.activeTransfers.delete(transferId);
-
-                    if (exitCode === 0) {
-                        new Notification({
-                            title: 'Magic Wormhole',
-                            body: `Text sent! Code: ${code}`
-                        }).show();
-
-                        resolve({ success: true, code, transferId });
-                    } else {
-                        reject({ success: false, error: output });
-                    }
-                });
-            });
-        });
-
-        // Receive text
-        ipcMain.handle('receive-text', async (event, code) => {
-            const transferId = Date.now().toString();
-
-            return new Promise((resolve, reject) => {
-                const wormholeProcess = spawn(this.wormholePath, ['receive', code], { stdio: 'pipe' });
-                this.activeTransfers.set(transferId, wormholeProcess);
-
-                let output = '';
-                let receivedText = '';
-
-                wormholeProcess.stdout.on('data', (data) => {
-                    const text = data.toString();
-                    output += text;
-                    receivedText += text;
-                });
-
-                wormholeProcess.on('close', (exitCode) => {
-                    this.activeTransfers.delete(transferId);
-
-                    if (exitCode === 0) {
-                        new Notification({
-                            title: 'Magic Wormhole',
-                            body: 'Text message received!'
-                        }).show();
-
-                        resolve({ success: true, text: receivedText.trim(), transferId });
-                    } else {
-                        reject({ success: false, error: output });
-                    }
-                });
-            });
-        });
-
-        // File dialog
-        ipcMain.handle('select-files', async () => {
-            const result = await dialog.showOpenDialog(this.mainWindow, {
-                properties: ['openFile', 'multiSelections'],
-                title: 'Select Files to Send'
-            });
-
-            if (!result.canceled) {
-                const fileInfos = await Promise.all(
-                    result.filePaths.map(async (filePath) => {
-                        const stats = await fs.stat(filePath);
-                        return {
-                            path: filePath,
-                            name: path.basename(filePath),
-                            size: stats.size
-                        };
-                    })
-                );
-                return fileInfos;
-            }
-            return [];
-        });
-
-        // Directory dialog
-        ipcMain.handle('select-directory', async () => {
-            const result = await dialog.showOpenDialog(this.mainWindow, {
-                properties: ['openDirectory'],
-                title: 'Select Download Location'
-            });
-
-            return result.canceled ? null : result.filePaths[0];
-        });
-
-        // Get default downloads directory
-        ipcMain.handle('get-downloads-dir', () => {
-            return path.join(os.homedir(), 'Downloads');
-        });
-
-        // Cancel transfer
-        ipcMain.handle('cancel-transfer', (event, transferId) => {
-            const process = this.activeTransfers.get(transferId);
-            if (process) {
-                process.kill();
-                this.activeTransfers.delete(transferId);
-                return true;
-            }
-            return false;
-        });
-
-        // Open file location
-        ipcMain.handle('open-location', (event, filePath) => {
-            shell.showItemInFolder(filePath);
-        });
-    }
+  mainWindow.on('closed', () => {
+    mainWindow = null;
+  });
 }
 
-new WormholeApp();
+app.whenReady().then(createWindow);
+
+app.on('window-all-closed', () => {
+  if (process.platform !== 'darwin') {
+    app.quit();
+  }
+});
+
+app.on('activate', () => {
+  if (BrowserWindow.getAllWindows().length === 0) {
+    createWindow();
+  }
+});
+
+ipcMain.handle('select-folder', async () => {
+  const result = await dialog.showOpenDialog(mainWindow, {
+    properties: ['openDirectory']
+  });
+  return result.canceled ? null : result.filePaths[0];
+});
+
+ipcMain.handle('get-default-download-path', () => {
+  return app.getPath('downloads');
+});
+
+ipcMain.handle('select-files', async () => {
+  const result = await dialog.showOpenDialog(mainWindow, {
+    properties: ['openFile', 'multiSelections']
+  });
+  return result.canceled ? null : result.filePaths;
+});
+
+let pendingReceive = null;
+
+ipcMain.handle('receive-file', async (event, { code, outputPath }) => {
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'wormhole-'));
+
+  return new Promise((resolve, reject) => {
+    const args = ['receive', code];
+
+    const options = {
+      stdio: ['pipe', 'pipe', 'pipe'],
+      cwd: tempDir
+    };
+
+    console.log('[wormhole] Temp dir:', tempDir);
+    console.log('[wormhole] Output dir:', outputPath);
+
+    let fileName = '';
+    let fileSize = 0;
+    let confirmed = false;
+
+    const sendProgress = (data) => {
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send('receive-progress', data);
+      }
+    };
+
+    const wormhole = spawn(WORMHOLE_BINARY, args, options);
+
+    sendProgress({ stage: 'connecting', message: 'Connecting...' });
+
+    wormhole.stdout.on('data', (data) => {
+      const text = data.toString();
+      console.log('[wormhole stdout]', text);
+
+      if (!confirmed) {
+        const sizeMatch = text.match(/\((\d+(?:\.\d+)?)\s*([KMGT]?B)\)/i);
+        if (sizeMatch) {
+          const num = parseFloat(sizeMatch[1]);
+          const unit = sizeMatch[2].toUpperCase();
+          const multipliers = { 'B': 1, 'KB': 1024, 'MB': 1024**2, 'GB': 1024**3, 'TB': 1024**4 };
+          fileSize = Math.round(num * (multipliers[unit] || 1));
+        }
+
+        const nameMatch = text.match(/into:\s*(.+?)(?:\n|$)/i);
+        if (nameMatch) {
+          fileName = nameMatch[1].trim();
+        }
+
+        if (text.includes('ok? (y/N):') || text.includes('ok? (y/n):')) {
+          console.log('[wormhole] Awaiting confirmation for:', fileName);
+          sendProgress({
+            stage: 'confirm',
+            message: 'Confirm transfer?',
+            fileName,
+            fileSize
+          });
+
+          pendingReceive = {
+            accept: () => {
+              confirmed = true;
+              pendingReceive = null;
+              console.log('[wormhole] User accepted');
+              sendProgress({ stage: 'accepted', message: 'Accepted, transferring...' });
+              wormhole.stdin.write('y\n');
+            },
+            reject: () => {
+              confirmed = true;
+              pendingReceive = null;
+              console.log('[wormhole] User rejected');
+              sendProgress({ stage: 'rejected', message: 'Transfer rejected' });
+              wormhole.stdin.write('n\n');
+            }
+          };
+        }
+      }
+
+      if (confirmed) {
+        if (text.includes('%')) {
+          const percentMatch = text.match(/(\d+)%/);
+          if (percentMatch) {
+            const percent = parseInt(percentMatch[1]);
+            sendProgress({
+              stage: 'progress',
+              message: `${percent}%`,
+              percent,
+              fileName,
+              fileSize
+            });
+          }
+        }
+
+        if (text.includes('Sent') || text.includes('complete') || text.includes('received')) {
+          sendProgress({ stage: 'complete', message: 'Transfer complete!', fileName });
+        }
+      }
+    });
+
+    wormhole.stderr.on('data', (data) => {
+      const text = data.toString();
+      console.log('[wormhole stderr]', text);
+
+      if (text.includes('transfer rejected') || text.includes('declined')) {
+        sendProgress({ stage: 'rejected', message: 'Transfer rejected by sender' });
+      }
+    });
+
+    wormhole.on('close', (code) => {
+      console.log('[wormhole close]', code);
+
+      pendingReceive = null;
+
+      if (code === 0 && confirmed) {
+        try {
+          const files = fs.readdirSync(tempDir);
+          console.log('[wormhole] Files in temp dir:', files);
+
+          if (files.length > 0 && outputPath) {
+            for (const file of files) {
+              const src = path.join(tempDir, file);
+
+              if (fs.statSync(src).isFile()) {
+                let dest = path.join(outputPath, file);
+                const ext = path.extname(file);
+                const base = path.basename(file, ext);
+
+                if (fs.existsSync(dest)) {
+                  const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+                  const newFileName = `${base}-${timestamp}${ext}`;
+                  dest = path.join(outputPath, newFileName);
+                  console.log('[wormhole] File exists, renaming to:', newFileName);
+                }
+
+                fs.copyFileSync(src, dest);
+                console.log('[wormhole] Moved', file, 'to', dest);
+              }
+            }
+          }
+        } catch (err) {
+          console.error('[wormhole] Error moving file:', err);
+        }
+
+        try {
+          fs.rmSync(tempDir, { recursive: true, force: true });
+        } catch (e) {}
+
+        sendProgress({ stage: 'complete', message: 'Transfer complete!', fileName });
+        resolve({ success: true, fileName, fileSize });
+      } else if (!confirmed) {
+        resolve({ success: false, error: 'Transfer cancelled' });
+      } else {
+        sendProgress({ stage: 'error', message: 'Transfer failed' });
+        resolve({ success: false, error: 'Transfer failed' });
+      }
+    });
+
+    wormhole.on('error', (err) => {
+      console.error('[wormhole error]', err);
+      pendingReceive = null;
+      sendProgress({ stage: 'error', message: err.message });
+      resolve({ success: false, error: err.message });
+    });
+  });
+});
+
+ipcMain.handle('confirm-receive', (event, accepted) => {
+  if (pendingReceive) {
+    if (accepted) {
+      pendingReceive.accept();
+    } else {
+      pendingReceive.reject();
+    }
+  }
+});
+
+ipcMain.handle('send-file', async (event, { filePaths }) => {
+  return new Promise((resolve, reject) => {
+    const args = ['send', ...filePaths];
+
+    const options = {
+      stdio: ['ignore', 'pipe', 'pipe']
+    };
+
+    console.log('[wormhole send] Args:', args);
+
+    let code = '';
+    let fileName = '';
+    let fileSize = 0;
+
+    const sendProgress = async (data) => {
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        if (data.code && !data.qrCode) {
+          try {
+            const qrText = `wormhole-transfer:${data.code}`;
+            const qrDataUrl = await QRCode.toDataURL(qrText, {
+              width: 180,
+              margin: 2,
+              color: { dark: '#000000', light: '#FFFFFF' }
+            });
+            data.qrCode = qrDataUrl;
+          } catch (err) {
+            console.error('QR generation error:', err);
+          }
+        }
+        mainWindow.webContents.send('send-progress', data);
+      }
+    };
+
+    const wormhole = spawn(WORMHOLE_BINARY, args, options);
+
+    sendProgress({ stage: 'preparing', message: 'Preparing...' });
+
+    wormhole.stdout.on('data', (data) => {
+      const text = data.toString();
+      console.log('[wormhole send stdout]', text);
+
+      const codeMatch = text.match(/wormhole code is:\s*(\S+)/i) || text.match(/(\d+-[a-z]+-[a-z]+)/i);
+      if (codeMatch) {
+        code = codeMatch[1].toLowerCase();
+        console.log('[wormhole send] Got code:', code);
+        sendProgress({ stage: 'waiting', message: 'Waiting for receiver...', code });
+      }
+
+      if (text.includes('%')) {
+        const percentMatch = text.match(/(\d+)%/);
+        if (percentMatch) {
+          const percent = parseInt(percentMatch[1]);
+          sendProgress({
+            stage: 'progress',
+            message: `${percent}%`,
+            percent,
+            code
+          });
+        }
+      }
+
+      if (text.toLowerCase().includes('sent') || text.toLowerCase().includes('complete') || text.toLowerCase().includes('transferred')) {
+        sendProgress({ stage: 'complete', message: 'Sent!', code });
+      }
+    });
+
+    wormhole.stderr.on('data', (data) => {
+      const text = data.toString();
+      console.log('[wormhole send stderr]', text);
+    });
+
+    wormhole.on('close', (code) => {
+      console.log('[wormhole send close]', code);
+      if (code === 0) {
+        resolve({ success: true, code });
+      } else {
+        sendProgress({ stage: 'error', message: 'Send failed' });
+        resolve({ success: false, error: 'Send failed' });
+      }
+    });
+
+    wormhole.on('error', (err) => {
+      console.error('[wormhole send error]', err);
+      sendProgress({ stage: 'error', message: err.message });
+      resolve({ success: false, error: err.message });
+    });
+  });
+});
