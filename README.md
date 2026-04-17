@@ -56,6 +56,3 @@ Builds are output to the `dist/` folder.
 - [wormhole-william](https://github.com/psanford/wormhole-william) (Go implementation of magic-wormhole)
 - QRCode
 
-## License
-
-MIT
