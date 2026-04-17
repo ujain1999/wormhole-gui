@@ -55,7 +55,3 @@ Builds are output to the `dist/` folder.
 - Electron
 - wormhole-william (Go implementation of magic-wormhole)
 - QRCode
-
-## License
-
-MIT
