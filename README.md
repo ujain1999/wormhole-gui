@@ -1,13 +1,16 @@
 # Wormhole GUI
 
-A GUI application for magic-wormhole. Send and receive files seamlessly.
+A beautiful, minimal desktop application for magic-wormhole. Send and receive files securely between devices using easy-to-share codes or QR codes.
 
 ## Features
 
 - Send files with drag and drop or file picker
 - Receive files by entering the wormhole code
-- QR code support for sending files
+- QR code support for easy mobile transfers
 - Light and dark themes
+- Configurable default download location
+- File confirmation dialog on receive
+- Automatic wormhole binary installation
 
 ## Requirements
 
@@ -20,13 +23,27 @@ A GUI application for magic-wormhole. Send and receive files seamlessly.
 npm install
 ```
 
-This will automatically download the wormhole-william binary for your platform.
-
-## Usage
+## Development
 
 ```bash
 npm start
 ```
+
+## Building
+
+```bash
+# Download binaries for each platform
+node scripts/download-binary.js mac
+node scripts/download-binary.js win
+node scripts/download-binary.js linux
+
+# Build each platform
+npm run build:mac    # macOS (dmg + zip)
+npm run build:win    # Windows (portable zip)
+npm run build:linux  # Linux (AppImage)
+```
+
+Builds are output to the `dist/` folder.
 
 ## How it works
 

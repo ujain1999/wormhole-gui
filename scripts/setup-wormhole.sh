@@ -1,34 +1,35 @@
 #!/bin/bash
 set -e
 
-OS=$(uname -s | tr '[:upper:]' '[:lower:]')
-ARCH=$(uname -m)
+TARGET_OS="${1:-$(uname -s | tr '[:upper:]' '[:lower:]')}"
+TARGET_ARCH="${2:-$(uname -m)}"
 
-case $ARCH in
-  x86_64) ARCH="amd64" ;;
-  arm64|aarch64) ARCH="arm64" ;;
+case $TARGET_ARCH in
+  x86_64) TARGET_ARCH="amd64" ;;
+  arm64|aarch64) TARGET_ARCH="arm64" ;;
+  i386|i686) TARGET_ARCH="386" ;;
   *)
-    echo "Unsupported architecture: $ARCH"
+    echo "Unsupported architecture: $TARGET_ARCH"
     exit 1
     ;;
 esac
 
-case $OS in
-  darwin) OS="darwin" ;;
-  linux) OS="linux" ;;
-  mingw*|cygwin*|msys*) OS="windows" ;;
+case $TARGET_OS in
+  darwin|macos) TARGET_OS="darwin" ;;
+  linux) TARGET_OS="linux" ;;
+  windows|win|mingw|cygwin|msys) TARGET_OS="windows" ;;
   *)
-    echo "Unsupported OS: $OS"
+    echo "Unsupported OS: $TARGET_OS"
     exit 1
     ;;
 esac
 
 EXT=""
-if [ "$OS" = "windows" ]; then
+if [ "$TARGET_OS" = "windows" ]; then
   EXT=".exe"
 fi
 
-BIN_NAME="wormhole-william-${OS}-${ARCH}${EXT}"
+BIN_NAME="wormhole-william-${TARGET_OS}-${TARGET_ARCH}${EXT}"
 VERSION="v1.0.8"
 DOWNLOAD_URL="https://github.com/psanford/wormhole-william/releases/download/${VERSION}/${BIN_NAME}"
 BIN_DIR="$(dirname "$0")/../bin"
@@ -36,12 +37,7 @@ BIN_PATH="${BIN_DIR}/wormhole-william${EXT}"
 
 mkdir -p "$BIN_DIR"
 
-if [ -f "$BIN_PATH" ]; then
-  echo "wormhole-william already installed at $BIN_PATH"
-  exit 0
-fi
-
-echo "Downloading wormhole-william from GitHub..."
+echo "Downloading wormhole-william for ${TARGET_OS}-${TARGET_ARCH}..."
 curl -L -o "$BIN_PATH" "$DOWNLOAD_URL"
 
 chmod +x "$BIN_PATH"

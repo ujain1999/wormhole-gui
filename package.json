@@ -6,13 +6,18 @@
   "scripts": {
     "start": "electron .",
     "dev": "electron . --enable-logging",
+    "download-binary": "node scripts/download-binary.js",
     "build": "electron-builder",
-    "build:mac": "electron-builder --mac",
-    "build:win": "electron-builder --win",
-    "build:linux": "electron-builder --linux"
+    "build:mac": "node scripts/download-binary.js mac && electron-builder --mac",
+    "build:win": "node scripts/download-binary.js win && electron-builder --win --x64",
+    "build:linux": "node scripts/download-binary.js linux && electron-builder --linux --x64",
+    "build:all": "npm run build:mac && npm run build:win && npm run build:linux"
   },
   "keywords": ["wormhole", "file-transfer", "electron"],
-  "author": "",
+  "author": {
+    "name": "Wormhole",
+    "email": "wormhole@example.com"
+  },
   "license": "MIT",
   "devDependencies": {
     "electron": "^33.0.0",
@@ -27,6 +32,7 @@
     "directories": {
       "output": "dist"
     },
+    "defaultArch": "x64",
     "files": [
       "**/*",
       "!dist/**/*"
@@ -37,10 +43,11 @@
       "target": ["dmg", "zip"]
     },
     "win": {
-      "target": ["nsis"]
+      "target": ["zip"]
     },
     "linux": {
-      "target": ["AppImage", "deb"]
+      "target": ["AppImage"],
+      "category": "Utility"
     },
     "extraResources": [
       {
