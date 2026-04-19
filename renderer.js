@@ -725,14 +725,46 @@ function initReceive() {
         if (completions.length > 0) {
           const hyphenCount = (value.match(/-/g) || []).length;
           const suffix = hyphenCount === 1 ? '-' : '';
-          receiveCodeInput.value = completions[0] + suffix;
+          const completion = completions[0] + suffix;
+          receiveCodeInput.value = completion;
+          const predictionEl = document.getElementById('receiveCodePrediction');
+          predictionEl.textContent = '';
+          predictionEl.classList.remove('visible');
         }
       }
     }
   });
 
   receiveCodeInput.addEventListener('input', (e) => {
-    e.target.value = e.target.value.toLowerCase();
+    const lowerValue = e.target.value.toLowerCase();
+    const value = lowerValue.trim();
+    const predictionEl = document.getElementById('receiveCodePrediction');
+
+    const cleanValue = value.replace(/-/g, '');
+
+    if (cleanValue.length > 0 && !/^\d+$/.test(cleanValue)) {
+      const completions = getWordCompletions(value, 2);
+      if (completions.length > 0) {
+        const hyphenCount = (value.match(/-/g) || []).length;
+        const suffix = hyphenCount === 1 ? '-' : '';
+        const completion = completions[0] + suffix;
+        const prediction = completion.slice(value.length);
+        predictionEl.textContent = prediction;
+        const tempSpan = document.createElement('span');
+        tempSpan.style.font = getComputedStyle(e.target).font;
+        tempSpan.style.letterSpacing = getComputedStyle(e.target).letterSpacing;
+        tempSpan.textContent = value.substring(0, e.target.selectionStart);
+        document.body.appendChild(tempSpan);
+        const width = tempSpan.offsetWidth;
+        document.body.removeChild(tempSpan);
+        predictionEl.style.left = (width + 26) + 'px';
+        predictionEl.classList.add('visible');
+      } else {
+        predictionEl.classList.remove('visible');
+      }
+    } else {
+      predictionEl.classList.remove('visible');
+    }
   });
 }
 

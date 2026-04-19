@@ -529,6 +529,9 @@ html, body {
   display: flex;
   flex-direction: column;
   gap: 16px;
+  width: 100%;
+  max-width: 400px;
+  margin: 0 auto;
 }
 
 .receive-label {
@@ -539,8 +542,28 @@ html, body {
 
 .code-input-wrapper {
   display: flex;
-  justify-content: center;
+  position: relative;
   width: 100%;
+}
+
+.code-prediction {
+  position: absolute;
+  left: 20px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-family: var(--font-mono);
+  font-size: 18px;
+  letter-spacing: 2px;
+  color: var(--text-secondary);
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity var(--transition-fast);
+  z-index: 10;
+  white-space: pre;
+}
+
+.code-prediction.visible {
+  opacity: 0.5;
 }
 
 .code-input {
@@ -553,7 +576,7 @@ html, body {
   background: var(--surface);
   font-family: var(--font-mono);
   font-size: 18px;
-  text-align: center;
+  text-align: left;
   letter-spacing: 2px;
   color: var(--text-primary);
   transition: all var(--transition-fast);
